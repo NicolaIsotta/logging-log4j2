@@ -917,6 +917,10 @@ The following table lists various keys that can be retrieved:
 |contextPath
 |The context path of the web application
 
+|cookie.<name>
+|Returns the value of the HTTP request cookie with the specified `<name>`.
+See <<WebLookup-request>>.
+
 |contextPathName
 |The first token in the context path of the web application splitting on "/" characters.
 
@@ -928,6 +932,10 @@ represented by this ServletContext is based on.
 |Gets the minor version of the Servlet specification that the application
 represented by this ServletContext is based on.
 
+|header.<name>
+|Returns the value of the HTTP request header with the specified `<name>`.
+See <<WebLookup-request>>.
+
 |initParam.<name>
 |Returns the ServletContext initialization parameter with the specified `<name>`.
 
@@ -937,6 +945,42 @@ represented by this ServletContext is based on.
 |minorVersion
 |Returns the minor version of the Servlet API that this servlet container supports.
 
+|request.attr.<name>
+|Returns the `ServletRequest` attribute with the specified `<name>`.
+See <<WebLookup-request>>.
+
+|request.method
+|Returns the HTTP method of the request.
+See <<WebLookup-request>>.
+
+|request.parameter.<name>
+|Returns the HTTP request parameter with the specified `<name>`.
+See <<WebLookup-request>>.
+
+|request.principal
+|Returns the name of the authenticated user of the HTTP request.
+See <<WebLookup-request>>.
+
+|request.remoteAddress
+|Returns the IP address of the client.
+See <<WebLookup-request>>.
+
+|request.remoteHost
+|Returns the fully qualified name of the client.
+See <<WebLookup-request>>.
+
+|request.remotePort
+|Returns the source port of the client.
+See <<WebLookup-request>>.
+
+|request.uri
+|Returns the URI of the HTTP request.
+See <<WebLookup-request>>.
+
+|request.url
+|Returns the URL of the HTTP request.
+See <<WebLookup-request>>.
+
 |rootDir
 |Returns the result of calling getRealPath with a value of "/".
 
@@ -945,6 +989,14 @@ represented by this ServletContext is based on.
 
 |servletContextName
 |Returns the name of the web application as defined in the display-name element of the deployment descriptor
+
+|session.attr.<name>
+|Returns the `HttpSession` attribute with the specified `<name>`.
+See <<WebLookup-request>>.
+
+|session.id
+|Returns the identifier of the `HttpSession`, if one exists.
+See <<WebLookup-request>>.
 
 |<name>
 |Return the first of `attr.<name>` and `initParam.<name>` that is defined.
@@ -958,6 +1010,34 @@ Using the Web Lookup, you can, for example, place the log file in the applicatio
   <File name="ApplicationLog" fileName="${web:rootDir}/app.log"/>
 </Appenders>
 ----
+
+[#WebLookup-request]
+==== Request-related keys
+
+The `cookie.*`, `header.*`, `request.*` and `session.*` keys are resolved against the request that is being processed by the current thread.
+They return `null` if:
+
+* the request was not processed by `Log4jServletFilter`, see xref:jakarta.adoc#log4j-jakarta-web[Integrating with web applications],
+* the lookup is evaluated outside the thread handling the request, for example, in an asynchronous request or when a layout is evaluated by an xref:manual/async.adoc[asynchronous logger or appender],
+* the requested value does not exist or, for the HTTP-specific keys, the request is not an `HttpServletRequest`.
+
+The `session.*` keys never create a new session.
+
+To make the request-related keys available in tasks that run on other threads, wrap the task using
+link:javadoc/log4j-jakarta-web/org/apache/logging/log4j/web/WebLoggerContextUtils.html#wrapExecutionContext(jakarta.servlet.ServletRequest,java.lang.Runnable)[`WebLoggerContextUtils.wrapExecutionContext(ServletRequest, Runnable)`]:
+
+[source,java]
+----
+asyncContext.start(WebLoggerContextUtils.wrapExecutionContext(request, () -> {
+    // `${web:request.uri}` resolves to the URI of `request`
+}));
+----
+
+[WARNING]
+====
+The values of cookies, headers and parameters are provided by the HTTP client and are not validated by Log4j.
+Treat them as untrusted input.
+====
 
 Additional runtime dependencies are required for using web lookup:
 

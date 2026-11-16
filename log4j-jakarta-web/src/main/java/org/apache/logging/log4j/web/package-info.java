@@ -22,7 +22,7 @@
  * @see <a href="https://logging.apache.org/log4j/2.x/jakarta.html#log4j-jakarta-web">Integrating Log4j with Web Applications</a>
  */
 @Export
-@Version("2.20.1")
+@Version("2.27.0")
 package org.apache.logging.log4j.web;
 
 import org.osgi.annotation.bundle.Export;

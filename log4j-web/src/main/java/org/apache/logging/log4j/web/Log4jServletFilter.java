@@ -32,6 +32,7 @@ import org.apache.logging.log4j.status.StatusLogger;
  * <ul>
  *     <li>Clearing the logger context when the application has finished starting up.</li>
  *     <li>Setting the logger context before processing a request and clearing it after processing a request.</li>
+ *     <li>Exposing the request being processed to the request-related keys of {@link WebLookup}.</li>
  *     <li>Setting the logger context when the application is starting to shut down.</li>
  * </ul>
  * This filter is a once-per-request filter. It is capable of filtering all the different types of requests
@@ -43,6 +44,8 @@ public class Log4jServletFilter implements Filter {
     private static final Logger LOGGER = StatusLogger.getLogger();
 
     static final String ALREADY_FILTERED_ATTRIBUTE = Log4jServletFilter.class.getName() + ".FILTERED";
+
+    private static final ThreadLocal<ServletRequest> CURRENT_REQUEST = new ThreadLocal<>();
 
     private ServletContext servletContext;
     private Log4jWebLifeCycle initializer;
@@ -64,11 +67,14 @@ public class Log4jServletFilter implements Filter {
         } else {
             request.setAttribute(ALREADY_FILTERED_ATTRIBUTE, Boolean.TRUE);
 
+            final ServletRequest previousRequest = CURRENT_REQUEST.get();
             try {
                 this.initializer.setLoggerContext();
+                CURRENT_REQUEST.set(request);
 
                 chain.doFilter(request, response);
             } finally {
+                restoreCurrentRequest(previousRequest);
                 this.initializer.clearLoggerContext();
                 // Execute once per thread
                 request.removeAttribute(ALREADY_FILTERED_ATTRIBUTE);
@@ -84,5 +90,32 @@ public class Log4jServletFilter implements Filter {
         LOGGER.debug("Log4jServletFilter destroyed.");
 
         this.initializer.setLoggerContext(); // the application is just now starting to shut down
+    }
+
+    /**
+     * Returns the request currently being processed by this thread, if any.
+     */
+    static ServletRequest getCurrentRequest() {
+        return CURRENT_REQUEST.get();
+    }
+
+    /**
+     * Binds {@code request} as the current request and returns the previously bound one.
+     */
+    static ServletRequest setCurrentRequest(final ServletRequest request) {
+        final ServletRequest previous = CURRENT_REQUEST.get();
+        CURRENT_REQUEST.set(request);
+        return previous;
+    }
+
+    /**
+     * Restores the request returned by {@link #setCurrentRequest}, removing the thread-local value if there was none.
+     */
+    static void restoreCurrentRequest(final ServletRequest previous) {
+        if (previous == null) {
+            CURRENT_REQUEST.remove();
+        } else {
+            CURRENT_REQUEST.set(previous);
+        }
     }
 }

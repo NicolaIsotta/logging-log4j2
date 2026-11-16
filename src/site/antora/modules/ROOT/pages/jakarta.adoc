@@ -255,6 +255,11 @@ Using this class you can either decorate a `Runnable` with method calls that bin
 include::example$manual/webapp/AsyncServlet.java[tag=automatic]
 ----
 
+If you use the request-related keys of the web lookup (e.g. `${web:request.uri}`), use the
+`WebLoggerContextUtils.wrapExecutionContext(ServletRequest, Runnable)` overload instead,
+which also binds the request to the thread.
+See xref:manual/lookups.adoc#WebLookup-request[request-related keys] for details.
+
 or, if more flexibility is required, you can apply the same logic by using
 link:javadoc/log4j-jakarta-web/org/apache/logging/log4j/web/Log4jWebSupport.html[`Log4jWebSupport`]:
 

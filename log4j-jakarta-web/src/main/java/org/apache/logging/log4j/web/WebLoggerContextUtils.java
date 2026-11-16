@@ -17,6 +17,7 @@
 package org.apache.logging.log4j.web;
 
 import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletRequest;
 import java.util.AbstractMap;
 import java.util.Map;
 import java.util.concurrent.locks.Lock;
@@ -104,6 +105,37 @@ public final class WebLoggerContextUtils {
             try {
                 runnable.run();
             } finally {
+                webSupport.clearLoggerContext();
+            }
+        };
+    }
+
+    /**
+     * Wraps a Runnable instance by setting its thread context {@link org.apache.logging.log4j.core.LoggerContext}
+     * and the current request before execution, and clearing them after execution.
+     * <p>
+     *     Use this method instead of {@link #wrapExecutionContext(ServletContext, Runnable)} if the request-related
+     *     keys of the {@code web} lookup (e.g. {@code ${web:request.uri}}) should resolve while the
+     *     {@code runnable} runs on a thread not managed by {@link Log4jServletFilter}, for example in an
+     *     asynchronous request.
+     * </p>
+     *
+     * @param request  the request whose ServletContext is used to locate a LoggerContext, and which is exposed to
+     *                 the {@code web} lookup
+     * @param runnable the Runnable to wrap execution for
+     * @return a wrapped Runnable
+     * @since 2.27.0
+     */
+    public static Runnable wrapExecutionContext(final ServletRequest request, final Runnable runnable) {
+        final ServletContext servletContext = request.getServletContext();
+        return () -> {
+            final Log4jWebSupport webSupport = getWebLifeCycle(servletContext);
+            webSupport.setLoggerContext();
+            final ServletRequest previousRequest = Log4jServletFilter.setCurrentRequest(request);
+            try {
+                runnable.run();
+            } finally {
+                Log4jServletFilter.restoreCurrentRequest(previousRequest);
                 webSupport.clearLoggerContext();
             }
         };
