@@ -24,6 +24,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import java.io.IOException;
+import java.util.function.BiConsumer;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.status.StatusLogger;
 
@@ -45,6 +46,16 @@ public class Log4jServletFilter implements Filter {
 
     static final String ALREADY_FILTERED_ATTRIBUTE = Log4jServletFilter.class.getName() + ".FILTERED";
 
+    /**
+     * Name of the {@link ServletContext} attribute holding a {@code BiConsumer<ServletRequest, Runnable>} that runs a
+     * task with the logger context and the given request bound to the current thread.
+     * <p>
+     *     Provided for compatibility with {@code log4j-jakarta-web} 3.x; prefer
+     *     {@link WebLoggerContextUtils#wrapExecutionContext(ServletRequest, Runnable)}.
+     * </p>
+     */
+    static final String REQUEST_EXECUTOR_ATTRIBUTE = "log4j.requestExecutor";
+
     private static final ThreadLocal<ServletRequest> CURRENT_REQUEST = new ThreadLocal<>();
 
     private ServletContext servletContext;
@@ -57,6 +68,10 @@ public class Log4jServletFilter implements Filter {
 
         this.initializer = WebLoggerContextUtils.getWebLifeCycle(this.servletContext);
         this.initializer.clearLoggerContext(); // the application is mostly finished starting up now
+
+        this.servletContext.setAttribute(REQUEST_EXECUTOR_ATTRIBUTE, (BiConsumer<ServletRequest, Runnable>)
+                (request, command) -> WebLoggerContextUtils.wrapExecutionContext(request, command)
+                        .run());
     }
 
     @Override

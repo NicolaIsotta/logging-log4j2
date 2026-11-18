@@ -19,6 +19,7 @@ package org.apache.logging.log4j.web;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -26,6 +27,7 @@ import static org.mockito.Mockito.when;
 
 import java.security.Principal;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
 import javax.servlet.ServletContext;
@@ -39,6 +41,7 @@ import org.apache.logging.log4j.core.impl.ContextAnchor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 /**
  * Tests the request- and session-related keys of {@link WebLookup}.
@@ -179,5 +182,28 @@ class WebLookupRequestTest {
         assertNull(Log4jServletFilter.getCurrentRequest());
         verify(lifeCycle).setLoggerContext();
         verify(lifeCycle).clearLoggerContext();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void requestExecutorAttributeBindsRequest() throws Exception {
+        final Log4jWebLifeCycle lifeCycle = mock(Log4jWebLifeCycle.class);
+        when(servletContext.getAttribute(Log4jWebSupport.SUPPORT_ATTRIBUTE)).thenReturn(lifeCycle);
+        final FilterConfig filterConfig = mock(FilterConfig.class);
+        when(filterConfig.getServletContext()).thenReturn(servletContext);
+        new Log4jServletFilter().init(filterConfig);
+        final ArgumentCaptor<Object> executor = ArgumentCaptor.forClass(Object.class);
+        verify(servletContext).setAttribute(eq("log4j.requestExecutor"), executor.capture());
+
+        final HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getServletContext()).thenReturn(servletContext);
+        when(request.getRequestURI()).thenReturn("/app/executor");
+        final AtomicReference<String> uriInTask = new AtomicReference<>();
+
+        ((BiConsumer<ServletRequest, Runnable>) executor.getValue())
+                .accept(request, () -> uriInTask.set(lookup.lookup(null, "request.uri")));
+
+        assertEquals("/app/executor", uriInTask.get());
+        assertNull(Log4jServletFilter.getCurrentRequest());
     }
 }

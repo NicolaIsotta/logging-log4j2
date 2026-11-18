@@ -1033,6 +1033,9 @@ asyncContext.start(WebLoggerContextUtils.wrapExecutionContext(request, () -> {
 }));
 ----
 
+`Log4jServletFilter` also stores the same functionality as a `BiConsumer<ServletRequest, Runnable>` in the `log4j.requestExecutor` attribute of the `ServletContext`.
+This attribute is also available in Log4j 3, so code that uses it works with both versions.
+
 [WARNING]
 ====
 The values of cookies, headers and parameters are provided by the HTTP client and are not validated by Log4j.
